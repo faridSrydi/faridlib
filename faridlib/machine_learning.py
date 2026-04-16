@@ -7,8 +7,6 @@ import time
 import itertools
 import subprocess
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 # ── Warna ANSI ──
 G = "\033[92m"   # Hijau
 B = "\033[94m"   # Biru
@@ -27,8 +25,23 @@ BANNER = r"""
                                                                             |___/
 """
 
+# BASE_DIR sekarang bukan __file__, tapi folder user menjalankan program
+BASE_DIR = os.path.abspath(os.getcwd())
+
+
+def set_base_dir(path=None):
+    """Set folder base untuk mencari lab-*."""
+    global BASE_DIR
+
+    if path and os.path.isdir(path):
+        BASE_DIR = os.path.abspath(path)
+    else:
+        BASE_DIR = os.path.abspath(os.getcwd())
+
+
 def clear():
     os.system("cls" if os.name == "nt" else "clear")
+
 
 def loading(msg, duration=1.5):
     """Animasi spinner."""
@@ -42,23 +55,30 @@ def loading(msg, duration=1.5):
         sys.stdout.write("\b\b")
     print(f" {G}[DONE]{RS}\n")
 
+
 def get_labs():
     """Mencari folder lab."""
+    if not os.path.isdir(BASE_DIR):
+        return []
+
     return sorted(
         d for d in os.listdir(BASE_DIR)
         if os.path.isdir(os.path.join(BASE_DIR, d)) and d.startswith("lab-")
     )
 
+
 def get_scripts(lab_folder):
-    """Mencari folder scripts."""
+    """Mencari file python dalam folder scripts."""
     scripts_dir = os.path.join(BASE_DIR, lab_folder, "scripts")
     if not os.path.isdir(scripts_dir):
         return []
     return sorted(f for f in os.listdir(scripts_dir) if f.endswith(".py"))
 
+
 def prettify(filename):
     """Ubah nama file dari script_name.py ke Script Name."""
     return filename.replace(".py", "").replace("_", " ").title()
+
 
 def get_python(lab):
     """Cari venv python di dalam folder lab, fallback ke sys.executable."""
@@ -75,36 +95,41 @@ def create_lab():
     print(f"\n{G}{BD}  ╔{'═' * 40}╗{RS}")
     print(f"{G}{BD}  ║{'CREATE NEW LAB':^40}║{RS}")
     print(f"{G}{BD}  ╚{'═' * 40}╝{RS}\n")
-    
+
+    print(f"{Y}Base Directory:{RS} {W}{BASE_DIR}{RS}\n")
+
     num = input(f"{BD} Masukkan Nomor Lab (contoh: 3, 04, 12): {RS}").strip()
-    
+
     if not num.isdigit():
         print(f"\n{R}[!] Gagal: Masukkan angka yang valid.{RS}")
         time.sleep(1.5)
         return
-        
-    lab_folder = f"lab-{int(num):02d}"  # Format selalu menjadi 2 digit (misal: lab-03)
+
+    lab_folder = f"lab-{int(num):02d}"
     lab_path = os.path.join(BASE_DIR, lab_folder)
     scripts_path = os.path.join(lab_path, "scripts")
-    
+
     if os.path.exists(lab_path):
         print(f"\n{Y}[!] Folder '{lab_folder}' sudah ada!{RS}")
     else:
         os.makedirs(scripts_path, exist_ok=True)
         print(f"\n{G}[+] Berhasil membuat folder: {lab_folder}{RS}")
         print(f"{G}[+] Berhasil membuat folder: {lab_folder}/scripts{RS}")
-        
+
     time.sleep(2)
+
 
 def lab_menu(lab_folder):
     """Menu khusus untuk isi di dalam lab yang dipilih"""
     lab_name = lab_folder.upper().replace("-", " ")
-    
+
     while True:
         clear()
         print(f"\n{G}{BD}  ╔{'═' * 40}╗{RS}")
         print(f"{G}{BD}  ║  {lab_name:^36}  ║{RS}")
         print(f"{G}{BD}  ╚{'═' * 40}╝{RS}\n")
+
+        print(f"{Y}Base Directory:{RS} {W}{BASE_DIR}{RS}\n")
 
         scripts = get_scripts(lab_folder)
 
@@ -136,7 +161,7 @@ def lab_menu(lab_folder):
         if 0 <= idx < len(scripts):
             filename = scripts[idx]
             path = os.path.join(BASE_DIR, lab_folder, "scripts", filename)
-            
+
             print(f"\n{Y}>>> Running: {prettify(filename)}...{RS}")
             print(f"{B}{'-' * 55}{RS}")
 
@@ -151,18 +176,25 @@ def lab_menu(lab_folder):
             print(f"\n{R}Opsi tidak tersedia!{RS}")
             time.sleep(1)
 
+
 def main():
+    # set base dir otomatis dari folder user menjalankan command
+    set_base_dir()
+
     while True:
         clear()
         print(f"{G}{BD}{BANNER}{RS}")
         print(f"{W}{BD}                     Copyright (c) 2026 Farid Suryadi{RS}\n")
+        print(f"{Y}Base Directory:{RS} {W}{BASE_DIR}{RS}\n")
+
         print(f"{B}{'=' * 70}{RS}")
         print(f"{BD} SELECT LAB:{RS}")
 
         labs = get_labs()
 
         if not labs:
-            print(f"  {Y}[!] Tidak ada folder lab ditemukan.{RS}")
+            print(f"  {Y}[!] Tidak ada folder lab ditemukan di:{RS}")
+            print(f"  {W}{BASE_DIR}{RS}\n")
 
         for i, lab in enumerate(labs, 1):
             print(f"  {G}[{i}]{RS} {lab.upper().replace('-', ' ')}")
@@ -196,6 +228,7 @@ def main():
         lab_folder = labs[idx]
         loading(f"Membuka {lab_folder.upper()}")
         lab_menu(lab_folder)
+
 
 def run():
     try:
